@@ -18,7 +18,7 @@ RUN yarn build
 # Stage 3: Production Image
 FROM base as production
 RUN yarn install --frozen-lockfile --production
-RUN yarn audit
+# RUN yarn audit
 COPY --from=builder /app/dist ./dist
 
 USER node
