@@ -3,23 +3,27 @@ variable "project_id" {
   type        = string
 }
 
-variable "region" {
-  description = "Default region"
-  type        = string
-}
-
 variable "zone" {
   description = "Default zone"
   type        = string
   sensitive   = true
 }
 
-variable "cluster_name" {
+variable "region" {
+  description = "Google Cloud region"
   type        = string
-  description = "Name of the GKE cluster"
 }
 
-variable "services" {
-  type        = list(string)
-  description = "Services to deploy"
+variable "cloud_run_name" {
+  description = "Cloud Run service name"
+  type        = string
+  default     = "app"
 }
+
+variable "cloud_run_image" {
+  description = "Public Docker Hub image"
+  type        = string
+
+  default = "docker.io/DOCKERHUB_USER/IMAGE:latest"
+}
+

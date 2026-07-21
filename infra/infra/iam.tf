@@ -5,7 +5,8 @@ data "google_service_account" "terraform" {
   project    = var.project_id
 }
 
-data "google_service_account" "gke_nodes" {
-  account_id = "gke-node"
+
+data "google_service_account" "cloud_run_runtime" {
   project    = var.project_id
+  account_id = "cloud-run-runtime"
 }

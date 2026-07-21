@@ -3,11 +3,19 @@ PROJECT_ID ?=
 ZONE ?=
 REGION ?= $(shell echo "$(ZONE)" | sed -E 's/-[a-z]$$//')
 
-TF_ARGS_INFRA = -var-file=$(VARS_FILE) \
-	-var="project_id=$(PROJECT_ID)" -var="zone=$(ZONE)" 
+TF_ARGS_INFRA = \
+	-var-file=$(VARS_FILE) \
+	-var="project_id=$(PROJECT_ID)" \
+	-var="zone=$(ZONE)" \
+	-var="region=$(REGION)"
 
-TF_ARGS_CORE_BOOTSTRAP = \
-	-var="project_id=$(PROJECT_ID)" -var="zone=$(ZONE)"
+TF_ARGS_BOOTSTRAP = \
+	-var="project_id=$(PROJECT_ID)" \
+	-var="region=$(REGION)"
+
+TF_ARGS_CORE = \
+	-var="project_id=$(PROJECT_ID)" \
+	-var="region=$(REGION)"
 
 .PHONY: activate_apis bootstrap_apply deploy core destroy_all help _confirm bootstrap _check_vars
 
@@ -34,13 +42,13 @@ activate_apis: ## Activate required APIs
 		compute.googleapis.com \
 		--project=$(PROJECT_ID)
 	@echo "Waiting for API propagation..." && sleep 30
-	
+
 bootstrap_apply: ## Apply bootstrap infrastructure
 	@$(MAKE) _check_vars
 	@cd bootstrap && { \
 		terraform init && \
 		terraform validate && \
-		terraform apply $(TF_ARGS_CORE_BOOTSTRAP) ; \
+		terraform apply $(TF_ARGS_BOOTSTRAP); \
 	}
 
 core: ## Deploy core infrastructure
@@ -48,7 +56,7 @@ core: ## Deploy core infrastructure
 	@cd core && { \
 		terraform init -backend-config="bucket=tfstate-$(PROJECT_ID)" -backend-config="prefix=core" && \
 		terraform validate && \
-		terraform apply $(TF_ARGS_CORE_BOOTSTRAP) ; \
+		terraform apply $(TF_ARGS_CORE); \
 	}
 
 deploy: ## Deploy infrastructure
@@ -74,13 +82,13 @@ destroy_all: ## Destroy all resources
 	@cd core && { \
 		set -e; \
 		terraform init -backend-config="bucket=tfstate-$(PROJECT_ID)" -backend-config="prefix=core" && \
-		terraform destroy $(TF_ARGS_CORE_BOOTSTRAP) -auto-approve; \
+		terraform destroy $(TF_ARGS_CORE) -auto-approve; \
 	}
 
 	@cd bootstrap && { \
 		set -e; \
 		terraform init && \
-		terraform destroy $(TF_ARGS_CORE_BOOTSTRAP) -auto-approve; \
+		terraform destroy $(TF_ARGS_BOOTSTRAP) -auto-approve; \
 	}
 
 	@$(MAKE) remove_pvcs

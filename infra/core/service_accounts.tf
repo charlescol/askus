@@ -16,3 +16,10 @@ resource "google_service_account" "container_deployer" {
   display_name = "Container Deployer"
   description  = "Service account for deploying containers"
 }
+
+resource "google_service_account" "cloud_run_runtime" {
+  account_id   = "cloud-run-runtime"
+  display_name = "Cloud Run Runtime"
+  description  = "Identity used by the running Cloud Run container"
+}
+
