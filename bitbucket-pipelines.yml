@@ -1,0 +1,145 @@
+# Set the Docker image for the pipeline
+image: charlescol/node-heroku:v1.0.0
+
+# Enable Docker within the pipeline
+options:
+  docker: true
+
+# Configure Git clone options
+clone:
+  depth: full  # Clone the full Git history
+
+# Define reusable steps
+definitions:
+  services:
+    docker:
+      memory: 2048
+      
+  steps:
+    # Start Pipeline step
+    - step: &start
+        name: Start Pipeline
+        script:
+          - echo "Start Pipeline on " $BITBUCKET_BRANCH
+
+    # Execute tests step
+    - step: &run-tests
+        size: 2x
+        name: "Execute Tests"
+        script:
+          # Build the test environment and compute tests
+          - export DOCKER_BUILDKIT=0 # Bitbucket agent issue
+          - docker-compose -f test/docker-compose.yml up --exit-code-from api
+          - docker-compose -f test/docker-compose.yml down
+        artifacts:
+          - test/test_results/**
+      
+    - step: &analyze-repository
+        name: "Analyze Repository"
+        caches:
+          - node
+        script:
+          - yarn install --frozen-lockfile
+          # Lint the code
+          - yarn lint
+          # Check for known vulnerabilities
+          - yarn audit
+
+    # Compress and deploy to Heroku dynos step 
+    # heroku stack:set heroku-22
+    - step: &compress-deploy-heroku-dynos 
+        caches:
+          - node  
+        script:
+          - yarn install --frozen-lockfile
+
+          # Build
+          - yarn build
+
+          # Create the production folder
+          - mkdir app && cp package.json yarn.lock Procfile app && cd app  
+          - yarn install --frozen-lockfile --production && cp -r ../dist .
+
+          # Compress the app
+          - touch api.tar.gz && tar --exclude=api.tar.gz -czvf api.tar.gz .
+
+          #Use Bitbucket Pipe to deploy it
+          - pipe: atlassian/heroku-deploy:0.1.1
+            variables:
+              HEROKU_API_KEY: $HEROKU_API_KEY
+              HEROKU_APP_NAME: $HEROKU_APP_NAME
+              ZIP_FILE: api.tar.gz
+
+    # Compress and deploy to Heroku container registry step (alternative to Heroku dynos, can be removed if not used)
+    # heroku stack:set container
+    - step: &compress-deploy-heroku-container
+        script:
+          # Compute the new Tag
+          - VERSION=$(jq -r .version package.json)
+          - TIMESTAMP=$(date +"%Y%m%d%H%M%S")
+          - TAG="$BITBUCKET_BRANCH:$VERSION-$TIMESTAMP"
+
+          # Prepare Heroku
+          - heroku container:login
+          - echo "$HEROKU_API_KEY" | docker login --username=_ --password-stdin registry.heroku.com
+
+          # Pull the last image for cache (bypass the 1GB cache limitation for Bitbucket)
+          - PREVIOUS_IMAGE="registry.heroku.com/$HEROKU_APP_NAME/web:latest"
+          - docker pull $PREVIOUS_IMAGE || true
+
+          # Build the production image with cache-from and BuildKit
+          - export PATH=/usr/bin:$PATH
+          - docker build -t $TAG -f Dockerfile --target production --cache-from=$PREVIOUS_IMAGE .
+
+          # Deploy to Heroku Container Registry and push the release
+          - docker tag $TAG registry.heroku.com/$HEROKU_APP_NAME/web
+          - docker push registry.heroku.com/$HEROKU_APP_NAME/web
+          - heroku container:release web --app $HEROKU_APP_NAME
+
+# Define pipelines for different branches
+pipelines:
+  custom: 
+    # Pipeline configuration to deploy without test
+    dev-without-test: 
+      - step:
+          <<: *start
+          deployment: development
+      - step:
+          name: Deploy to DEV without tests
+          <<: *compress-deploy-heroku-dynos
+
+  branches:
+    # Pipeline configuration for the 'dev' branch
+    dev:
+      - step: *start
+      - parallel: 
+          steps:
+            - step: *analyze-repository
+            - step: *run-tests 
+      - step:
+          name: Deploy to Dev
+          <<: *compress-deploy-heroku-dynos
+
+    # Pipeline configuration for the 'staging' branch
+    staging:
+      - step: *start
+      - parallel: 
+          steps:
+            - step: *analyze-repository
+            - step: *run-tests
+      - step:
+          name: Deploy to Staging
+          <<: *compress-deploy-heroku-dynos
+          deployment: staging
+
+    # Pipeline configuration for the 'master' branch
+    master:
+      - step: *start
+      - parallel: 
+          steps:
+            - step: *analyze-repository
+            - step: *run-tests
+      - step:
+          name: Deploy to Production
+          <<: *compress-deploy-heroku-dynos
+          deployment: production

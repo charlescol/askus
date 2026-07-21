@@ -1,0 +1,14 @@
+version: "3.7"
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      labels:
+        env: dev
+    restart: always
+    ports:
+      - "3000:3000"
+    command: ["npm", "run", "start:dev"]
+    volumes:
+      - .:/app

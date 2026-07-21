@@ -1,0 +1,36 @@
+{
+  "moduleFileExtensions": ["js", "json", "ts", "spec.ts", "e2e-spec.ts"],
+  "rootDir": "../..",
+  "testEnvironment": "node",
+  "testMatch": ["<rootDir>/**/*.spec.ts", "<rootDir>/**/*.e2e-spec.ts"],
+  "transform": {
+    "^.+\\.(t|j)s$": "ts-jest"
+  },
+  "moduleNameMapper": {
+    "^@common/(.*)$": "<rootDir>/common/$1",
+    "^@configs/(.*)$": "<rootDir>/configs/$1",
+    "^@custom/(.*)$": "<rootDir>/custom/$1",
+    "^@models/(.*)$": "<rootDir>/models/$1",
+    "^@providers/(.*)$": "<rootDir>/common/providers/$1",
+    "^@src/(.*)$": "<rootDir>/$1"
+  },
+  "verbose": false,
+  "silent": false,
+  "testTimeout": 120000,
+  "coverageDirectory": "../test_results/coverage",
+  "maxConcurrency": 1,
+  "reporters": [
+    "default", [
+      "jest-stare",
+      {
+        "resultDir": "./test_results/jest-stare",
+        "reportTitle": "Report",
+        "reportHeadline": "Tests",
+        "additionalResultsProcessors": [
+          "jest-junit"
+        ],
+        "coverageLink": "../coverage/lcov-report/index.html"
+      }
+    ]
+  ]
+}
