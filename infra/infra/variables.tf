@@ -23,7 +23,5 @@ variable "cloud_run_name" {
 variable "cloud_run_image" {
   description = "Public Docker Hub image"
   type        = string
-
-  default = "docker.io/DOCKERHUB_USER/IMAGE:latest"
 }
 

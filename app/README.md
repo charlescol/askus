@@ -1,7 +1,3 @@
-# Marketaux
-
-This project is a template for NestJS. It offers a robust starting point and includes fundamental unit tests and end-to-end tests, exemplified through a simple "Hello World" function located in the main application module.
-
 ## Key Commands
 
 This project utilizes several `yarn` scripts for efficient development, testing, and deployment:
@@ -27,8 +23,6 @@ Base your configuration on the `.env.example` provided. Ensure any changes to en
 
 The organization of the project's source code directories is defined as below:
 
-- `src/configs/*` : This directory contains all the configuration files related to the project. It includes configurations for the tests, and various environment files. 
+- `src/configs/*` : This directory contains all the configuration files related to the project. It includes configurations for the tests, and various environment files.
 - `src/common/*`: Here, you will find common shared files and modules. These are utility files and modules that are used across different parts of the application, providing a centralized location for code that is used frequently throughout the project.
 - `test/*`: This directory is set up for configuring and recreating the test environment by the pipeline.
-
-
