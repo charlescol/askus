@@ -1,0 +1,46 @@
+# These are some examples of commonly ignored file patterns.
+# You should customize this list as applicable to your project.
+# Learn more about .gitignore:
+#     https://www.atlassian.com/git/tutorials/saving-changes/gitignore
+
+# Secrets
+*.tfvars
+*key.json
+.env
+# Terraform
+.terraform/**
+.terraform.lock.hcl
+*.tfstate*
+*.plan
+*.tfplan
+.terraform
+
+**/.terraform/**
+**/.terraform.lock.hcl
+**/*.tfstate*
+**/*.plan
+
+# Log files
+*.log
+
+*.tar.gz
+
+# IDE - VSCode
+.vscode
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+.sfdx
+
+# Misc
+dummy_nest_api.zip
+functions.zip
+
+# Certificates
+generated-*/
+*.crt
+*.key
+*.pem
+*.cnf
