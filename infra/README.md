@@ -1,4 +1,4 @@
-# Market Streaming Infrastructure Terraform
+# Askus Terraform
 
 ## Scope
 
