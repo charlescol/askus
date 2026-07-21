@@ -13,6 +13,8 @@ Built for private friend groups, with rotating themes, anonymous voting, and dup
 
 ## Setup and start locally
 
+Create a `.env.local` file in the `app/env` directory (see `.env.example` for an example).
+
 ```bash
 cd app && yarn install
 yarn run start:dev
