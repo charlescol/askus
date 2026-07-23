@@ -27,25 +27,6 @@ interface TelegramResponse {
   description?: string;
 }
 
-const GENERATION_INSTRUCTIONS = `
-Tu écris le sondage quotidien d'un groupe Telegram privé composé de cinq amis :
-Charles, Thomas, Romain, Victor et Benjamin.
-
-Crée UNE question originale, courte, immédiatement compréhensible et en français.
-Elle doit donner envie de voter puis de débattre, concerner directement le groupe,
-et permettre de choisir naturellement une seule personne parmi les cinq.
-
-Le ton peut être drôle, absurde, révélateur ou légèrement piquant, mais jamais
-méchant, humiliant, discriminatoire, sexuel de manière explicite, ni susceptible
-de provoquer un conflit sérieux. Préfère une situation concrète à une question
-générique. Varie la formulation et ne commence pas systématiquement par
-« Qui est le plus susceptible de… ».
-
-Réponds uniquement avec la question : pas de préfixe, pas de guillemets, pas
-d'explication, pas de thème, pas d'options et pas de retour à la ligne. La question
-doit se terminer par un point d'interrogation et faire au maximum 300 caractères.
-`.trim();
-
 @Injectable()
 export class DailyPollService {
   private readonly logger = new Logger(DailyPollService.name);
@@ -68,6 +49,44 @@ export class DailyPollService {
       'DAILY_POLL_HISTORY_FILE',
       path.resolve(process.cwd(), 'data', 'daily-polls.json'),
     );
+  }
+
+  private buildGenerationInstructions(): string {
+    const peopleList = PEOPLE.join(', ');
+
+    return `
+    Tu écris le sondage quotidien d'un groupe Telegram privé composé de ${PEOPLE.length} amis proches :
+    ${peopleList}.
+
+    Crée UNE question originale, courte, immédiatement compréhensible et en français.
+    Elle doit concerner directement le groupe et permettre de choisir naturellement
+    une seule personne.
+
+    Le groupe est composé de jeunes amis très proches qui se connaissent bien, se vannent
+    beaucoup et aiment se chambrer sans filtre. Tu peux donc être franchement taquin,
+    provocateur, piquant, gênant, insolent ou méchant si cela rend la question
+    plus drôle et déclenche des réactions.
+
+    Privilégie les questions qui peuvent créer des accusations amicales, révéler des
+    dossiers, mettre quelqu'un dans l'embarras pour rire, provoquer un débat ou faire
+    immédiatement penser à un membre précis du groupe.
+
+    Évite les questions trop sages, consensuelles, génériques ou prévisibles.
+    N'hésite pas à exploiter des situations embarrassantes, des défauts, de mauvaises
+    habitudes, les relations amoureuses, les soirées, l'alcool, l'argent, le travail,
+    la drague, les mensonges, l'ego, la radinerie, la jalousie ou les décisions absurdes.
+
+    La priorité est que les membres aient envie de voter, de se défendre et de se vanner
+    dans les commentaires après avoir vu le résultat.
+
+    Varie fortement les scénarios et les formulations. Ne commence pas systématiquement
+    par « Qui est le plus susceptible de… ».
+
+    Réponds uniquement avec la question : pas de préfixe, pas de guillemets, pas
+    d'explication, pas de thème, pas d'options et pas de retour à la ligne.
+    La question doit se terminer par un point d'interrogation et faire au maximum
+    300 caractères.
+  `.trim();
   }
 
   async publishDailyPoll(): Promise<void> {
@@ -96,7 +115,7 @@ export class DailyPollService {
     for (let attempt = 1; attempt <= 2; attempt += 1) {
       const response = await this.openai.responses.create({
         model: this.openaiModel,
-        instructions: GENERATION_INSTRUCTIONS,
+        instructions: this.buildGenerationInstructions(),
         input: [
           `Thème imposé aujourd'hui : ${theme}.`,
           'Questions récentes à ne pas répéter ni reformuler de trop près :',
@@ -152,7 +171,7 @@ export class DailyPollService {
         question,
         options: PEOPLE.map((text) => ({ text })),
         type: 'regular',
-        is_anonymous: true,
+        is_anonymous: false,
         allows_multiple_answers: false,
       }),
       signal: AbortSignal.timeout(15_000),
