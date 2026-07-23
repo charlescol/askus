@@ -2,7 +2,6 @@ import { promises as fs } from 'node:fs';
 import * as path from 'node:path';
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Cron } from '@nestjs/schedule';
 import OpenAI from 'openai/index.js';
 
 const TIME_ZONE = 'Europe/Paris';
@@ -71,11 +70,6 @@ export class DailyPollService {
     );
   }
 
-  @Cron('0 0 9 * * *', {
-    name: 'daily-telegram-poll',
-    timeZone: TIME_ZONE,
-    waitForCompletion: true,
-  })
   async publishDailyPoll(): Promise<void> {
     const history = await this.readHistory();
     const theme = this.themeForToday();
@@ -86,12 +80,12 @@ export class DailyPollService {
       try {
         await this.writeHistory([...history, { date: this.dateInParis(), theme, question }]);
       } catch {
-        this.logger.warn("Le sondage a été publié, mais son historique n'a pas pu être enregistré.");
+        this.logger.warn('The poll has been published, but its history could not be recorded.');
       }
-      this.logger.log(`Sondage quotidien publié (${theme}).`);
+      this.logger.log(`Daily poll published (${theme}).`);
     } catch (error) {
       const message = error instanceof Error ? error.stack : String(error);
-      this.logger.error('Échec de la publication du sondage quotidien.', message);
+      this.logger.error('Failed to publish the daily poll.', message);
     }
   }
 
@@ -124,14 +118,14 @@ export class DailyPollService {
       rejectionReason = `La proposition précédente a été refusée : ${rejectionReason}. Génère une autre question.`;
     }
 
-    throw new Error("OpenAI n'a pas produit de question valide en deux essais.");
+    throw new Error('OpenAI has not produced a valid question in two attempts.');
   }
 
   private cleanQuestion(value: string): string {
     return value
       .trim()
       .replace(/^question\s*:\s*/iu, '')
-      .replace(/^[«“\"]|[»”\"]$/gu, '')
+      .replace(/^[«“"]|[»”"]$/gu, '')
       .trim();
   }
 
@@ -166,7 +160,7 @@ export class DailyPollService {
 
     const payload = (await response.json()) as TelegramResponse;
     if (!response.ok || !payload.ok) {
-      throw new Error(`Telegram a refusé le sondage : ${payload.description ?? response.status}`);
+      throw new Error(`Telegram has refused the poll : ${payload.description ?? response.status}`);
     }
   }
 
@@ -221,7 +215,7 @@ export class DailyPollService {
         .slice(-60);
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === 'ENOENT') return [];
-      this.logger.warn('Historique illisible ; démarrage avec un historique vide.');
+      this.logger.warn('History is ill-formed ; starting with an empty history.');
       return [];
     }
   }

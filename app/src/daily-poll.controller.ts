@@ -13,7 +13,7 @@ export class DailyPollController {
     this.debugToken = config.getOrThrow<string>('POLL_DEBUG_TOKEN');
   }
 
-  @Post('debug')
+  @Post()
   @HttpCode(HttpStatus.OK)
   async publishNow(@Headers('authorization') authorization?: string): Promise<void> {
     if (authorization !== `Bearer ${this.debugToken}`) {
