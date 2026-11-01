@@ -17,7 +17,7 @@ resource "google_cloud_run_v2_service" "app" {
 
     scaling {
       min_instance_count = 0
-      max_instance_count = 3
+      max_instance_count = 1
     }
 
     containers {
@@ -34,6 +34,12 @@ resource "google_cloud_run_v2_service" "app" {
         }
       }
     }
+  }
+  lifecycle {
+    ignore_changes = [
+      template[0].containers[0].image,
+      template[0].containers[0].env,
+    ]
   }
 
   traffic {
