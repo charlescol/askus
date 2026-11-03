@@ -1,14 +1,22 @@
 use crate::{
     common::error::ApiError,
-    poll::{error::PollError, models::PollRequest, service::PollService},
+    poll::{
+        error::PollError,
+        models::{Poll, PollRequest},
+        service::PollService,
+    },
 };
 use actix_web::{HttpResponse, post, web};
 use validator::Validate;
 
 #[utoipa::path(
     post,
+    path = "/poll",
+    request_body = PollRequest,
     responses(
-        (status = 201, description = "Handle the creation of a new poll")
+        (status = 201, description = "Poll created", body = Poll),
+        (status = 400, description = "Invalid request"),
+        (status = 500, description = "Internal server error")
     ),
     tag = "Polls"
 )]
