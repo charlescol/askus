@@ -7,6 +7,6 @@ data "google_service_account" "terraform" {
 
 
 data "google_service_account" "cloud_run_runtime" {
-  project    = var.project_id
   account_id = "cloud-run-runtime"
+  project    = var.project_id
 }

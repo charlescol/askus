@@ -1,0 +1,9 @@
+[package]
+name = "init-config"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+thiserror = "1.0"
+serde_yaml = "0.9"
+serde = { version = "1.0", features = ["derive"] }
