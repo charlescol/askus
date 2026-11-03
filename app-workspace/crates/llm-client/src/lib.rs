@@ -1,97 +1,46 @@
-use init_config::ConfigLoader;
-use serde::{Deserialize, Serialize};
-
+use bon::Builder;
+use serde::de::DeserializeOwned;
 use serde_json::{Value, json};
-use validator::Validate;
 
-use std::sync::LazyLock;
-
-static CONFIG: LazyLock<Result<Config, String>> =
-    LazyLock::new(|| Config::load().map_err(|err| err.to_string()));
-
-static HTTP_CLIENT: LazyLock<reqwest::Client> = LazyLock::new(reqwest::Client::new);
-
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum PollType {
-    Person,
-    Who,
-    Random,
+pub enum Company {
+    OpenAI,
 }
+#[derive(Builder)]
+pub struct LlmClient {
+    #[builder(skip = reqwest::Client::new())]
+    http_client: reqwest::Client,
 
-#[derive(Debug, Serialize, Validate)]
-pub struct PollRequest {
-    #[validate(length(min = 1))]
-    pub subject: String,
-
-    #[validate(length(min = 4))]
-    pub participants: Vec<String>,
-
-    #[validate(range(min = 1, max = 5))]
-    pub intensity: u8,
-
-    pub poll_type: PollType,
-}
-
-#[derive(Debug, Deserialize, Validate)]
-pub struct Poll {
-    #[serde(rename = "type")]
-    pub poll_type: PollType,
-
-    pub target: Option<String>,
-
-    #[validate(length(min = 1))]
-    pub question: String,
-
-    #[validate(length(min = 4))]
-    pub answers: Vec<String>,
-}
-
-#[derive(Debug, Deserialize)]
-pub(crate) struct Config {
-    system_prompt: String,
     api_key: String,
-    openai_api_url: String,
+
+    #[builder(default = "https://api.openai.com/v1/responses".to_string())]
+    api_url: String,
+
+    #[builder(default = "gpt-6-luna".to_string())]
+    model: String,
 }
 
-impl Config {
-    /// Load the configuration from environment variables.
-    fn load() -> Result<Self, anyhow::Error> {
-        #[cfg(debug_assertions)]
-        dotenv::dotenv().ok();
-
-        let path = ConfigLoader::load_or_fail("ASKUS_PROMPT_PATH")?;
-        Ok(Config {
-            system_prompt: std::fs::read_to_string(path)?,
-            api_key: ConfigLoader::load_or_fail("OPENAI_API_KEY")?,
-            openai_api_url: ConfigLoader::load_or_fail("OPENAI_API_URL")?,
-        })
-    }
-
-    // Get the configuration. Lazy load it if it hasn't been loaded yet.
-    pub(crate) fn get() -> Result<&'static Self, anyhow::Error> {
-        CONFIG.as_ref().map_err(|err| anyhow::anyhow!("{err}"))
-    }
-}
-
-impl Poll {
-    // Create a new Poll by sending a request to the OpenAI API.
+impl LlmClient {
+    /// Generate a response from the LLM API.
     /// # Parameters
-    /// - `request`: the PollRequest to send to the OpenAI API.
-    pub async fn new(request: PollRequest) -> Result<Poll, anyhow::Error> {
-        let config = Config::get()?;
-        request.validate()?;
-
-        let response = HTTP_CLIENT
-            .post(&config.openai_api_url)
-            .bearer_auth(&config.api_key)
+    /// - `instructions`: the instructions to send to the LLM API, used to guide the model's behavior.
+    /// - `input`: the user input to send to the LLM API
+    pub async fn generate<T>(&self, instructions: &str, input: &str) -> anyhow::Result<T>
+    where
+        T: DeserializeOwned,
+    {
+        let response = self
+            .http_client
+            .post(&self.api_url)
+            .bearer_auth(&self.api_key)
             .json(&json!({
-                "model": "gpt-6-luna",
-                "instructions": config.system_prompt,
+                "model": &self.model,
+                "instructions": instructions,
                 "input": [
                     {
                         "role": "user",
-                        "content": serde_json::to_string(&request)?
+                        "content": format!(
+                            "Return a valid JSON object.\n{input}"
+                        )
                     }
                 ],
                 "text": {
@@ -102,10 +51,19 @@ impl Poll {
                 "max_output_tokens": 500
             }))
             .send()
-            .await?
-            .error_for_status()?;
+            .await?;
+
+        let status = response.status();
+
+        if !status.is_success() {
+            anyhow::bail!("LLM API error ({}): {}", status, response.text().await?);
+        }
 
         let body: Value = response.json().await?;
+
+        if body["status"] != "completed" {
+            anyhow::bail!("LLM response not completed: {body}");
+        }
 
         let content = body["output"]
             .as_array()
@@ -121,10 +79,36 @@ impl Poll {
             })
             .ok_or_else(|| anyhow::anyhow!("Missing text response: {body}"))?;
 
-        let poll: Poll = serde_json::from_str(content)?;
+        Ok(serde_json::from_str(content)?)
+    }
+}
 
-        poll.validate()?;
+#[cfg(test)]
+pub mod tests {
+    use super::*;
+    use serde::Deserialize;
 
-        Ok(poll)
+    #[derive(Debug, Deserialize)]
+    struct TestResponse {
+        message: String,
+    }
+
+    #[tokio::test]
+    #[ignore] // Ignore this test by default, as it requires a valid OpenAI API key and URL.
+    async fn test_generate() {
+        #[cfg(debug_assertions)]
+        dotenv::dotenv().ok();
+
+        let client = LlmClient::builder()
+            .api_key(std::env::var("OPENAI_API_KEY").expect("OPENAI_API_KEY must be set"))
+            .api_url(std::env::var("OPENAI_API_URL").expect("OPENAI_API_URL must be set"))
+            .build();
+
+        let instructions = "Return a JSON object with a message field.";
+        let input = "Hello, world!";
+
+        let result: TestResponse = client.generate(instructions, input).await.unwrap();
+
+        assert_eq!(result.message, "Hello, world!");
     }
 }
