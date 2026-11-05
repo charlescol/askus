@@ -5,7 +5,7 @@ members = [
     "crates/llm-client",
     "crates/askus-api",
     "crates/debate-api",
-    "crates/init-config",
+    "crates/init-config", "crates/telegram-client",
 ]
 
 [workspace.dependencies]
